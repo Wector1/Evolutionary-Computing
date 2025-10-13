@@ -59,41 +59,73 @@ END FUNCTION
 3. Nearest neighbor considering adding the node at all possible positions, i.e. at the end, at the beginning, or at any place inside the current path:
 ```
 FUNCTION NearestNeighbour2(distances, costs, start_point):
-    n ← number of points
+    n ← number of nodes
     visited[0..n-1] ← FALSE
     next_node[0..n-1] ← -1
     first ← last ← start_point
     visited[start_point] ← TRUE
 
-    // Initialize priority queues for possible insertions
-    q_before ← all candidates to add before the current path
-    q_end ← all candidates to add after the current path
-    q_middle ← map of (segment_start, segment_end) → priority queue of insertions in between
+    // Initialize priority queues:
+    q_before ← cheapest insertions before the current path
+    q_end ← cheapest insertions after the current path
+    q_middle ← map (i, j) → PQ of insertions between i and j
+    FOR each unvisited node j:
+        cost ← distances[start_point][j] + costs[j]
+        INSERT (-cost, j, start_point) INTO q_before
+        INSERT (-cost, j, start_point) INTO q_end
 
-    FOR iteration FROM 1 TO n/2 - 1 DO
-        // Get best available candidates
-        (cost_b, point_b, source_b) ← best valid candidate from q_before
-        (cost_e, point_e, source_e) ← best valid candidate from q_end
-        (cost_m, point_m, source_m, dest_m) ← best valid candidate from q_middle
+    FOR k FROM 1 TO n/2 - 1 DO
+        // --- Find best insertion option of each type ---
+        (cost_b, city_b, src_b) ← best valid entry from q_before
+        (cost_e, city_e, src_e) ← best valid entry from q_end
+        (cost_m, city_m, src_m, dst_m) ← best valid entry from q_middle
 
-        // Choose cheapest of the three insertion options
+        // --- Select global best insertion ---
         IF cost_b ≤ cost_e AND cost_b ≤ cost_m THEN
-            INSERT point_b before path start
-            first ← point_b
-            UPDATE q_before and q_middle
-        ELSE IF cost_e < cost_m THEN
-            INSERT point_e after path end
-            last ← point_e
-            UPDATE q_end and q_middle
-        ELSE
-            INSERT point_m between source_m and dest_m
-            UPDATE q_middle around that segment
-        ENDIF
+            INSERT city_b before current start
+            next_node[city_b] ← src_b
+            first ← city_b
+            visited[city_b] ← TRUE
 
-        visited[new_point] ← TRUE
+            // Update data structures
+            CLEAR q_before
+            FOR each unvisited node j:
+                cost ← distances[city_b][j] + costs[j]
+                INSERT (-cost, j, city_b) INTO q_before
+                cycle_cost ← distances[city_b][j] + distances[j][src_b] + costs[j] - distances[city_b][src_b]
+                INSERT (-cycle_cost, j, city_b, src_b) INTO q_middle
+
+        ELSE IF cost_e < cost_m THEN
+            INSERT city_e after current end
+            next_node[src_e] ← city_e
+            last ← city_e
+            visited[city_e] ← TRUE
+
+            // Update data structures
+            CLEAR q_end
+            FOR each unvisited node j:
+                cost ← distances[city_e][j] + costs[j]
+                INSERT (-cost, j, city_e) INTO q_end
+                cycle_cost ← distances[src_e][j] + distances[j][city_e] + costs[j] - distances[src_e][city_e]
+                INSERT (-cycle_cost, j, src_e, city_e) INTO q_middle
+
+        ELSE
+            INSERT city_m between src_m and dst_m
+            next_node[src_m] ← city_m
+            next_node[city_m] ← dst_m
+            visited[city_m] ← TRUE
+
+            // Update q_middle for new segments
+            REMOVE q_middle[(src_m, dst_m)]
+            FOR each unvisited node j:
+                cost1 ← distances[src_m][j] + distances[j][city_m] + costs[j] - distances[src_m][city_m]
+                cost2 ← distances[city_m][j] + distances[j][dst_m] + costs[j] - distances[city_m][dst_m]
+                INSERT (-cost1, j, src_m, city_m) INTO q_middle
+                INSERT (-cost2, j, city_m, dst_m) INTO q_middle
+        ENDIF
     ENDFOR
 
-    // Reconstruct path from linked structure next_node[]
+    // --- Reconstruct path from next_node array ---
     path ← [first]
     WHILE next_node[path.last] ≠ -1 DO
         APPEND next_node[path.last] TO path
@@ -101,50 +133,78 @@ FUNCTION NearestNeighbour2(distances, costs, start_point):
 
     RETURN path
 END FUNCTION
-
 ```
 4. Greedy cycle
 ```
 FUNCTION NearestNeighbourCycle(distances, costs, start_point):
-    n ← number of cities
+    n ← number of nodes
     visited[0..n-1] ← FALSE
     next_node[0..n-1] ← -1
     first ← last ← start_point
     visited[start_point] ← TRUE
 
-    // Priority queues for cheapest insertions
-    q_before ← possible insertions before the path
-    q_end ← possible insertions after the path
-    q_middle ← map of (i, j) → priority queue of insertions between i and j
+    // Initialize insertion queues
+    q_before ← PQ of (-cost, node, source) for insertions before start
+    q_end ← PQ of (-cost, node, source) for insertions after end
+    q_middle ← map (i, j) → PQ of (-cost, node, source, dest) for middle insertions
 
-    INITIALIZE q_before, q_end with all unvisited cities' costs from start_point
+    FOR each unvisited node j:
+        base_cost ← distances[start_point][j] + costs[j]
+        PUSH (-base_cost, j, start_point) INTO q_before
+        PUSH (-base_cost, j, start_point) INTO q_end
 
-    FOR step FROM 1 TO n/2 - 1 DO
-        // Find best available insertion of each type
-        (cost_b, city_b) ← best valid entry in q_before
-        (cost_e, city_e) ← best valid entry in q_end
-        (cost_m, city_m, src_m, dst_m) ← best valid entry across q_middle
+    // Iteratively extend or connect cycles
+    FOR iter FROM 1 TO n/2 - 1 DO
+        // --- Select best available insertion candidate ---
+        (cost_b, city_b, src_b) ← best valid from q_before
+        (cost_e, city_e, src_e) ← best valid from q_end
+        (cost_m, city_m, src_m, dst_m) ← best valid across q_middle
 
-        // Choose the globally cheapest insertion
+        // Choose the lowest cost option
         IF cost_b ≤ cost_e AND cost_b ≤ cost_m THEN
-            INSERT city_b before current start
-            first ← city_b
-            UPDATE q_middle with new possible cycles between city_b and its neighbor
-
+            type ← "before"
         ELSE IF cost_e < cost_m THEN
-            INSERT city_e after current end
-            last ← city_e
-            UPDATE q_middle with new possible cycles between its neighbors
-
+            type ← "end"
         ELSE
-            INSERT city_m between src_m and dst_m
-            UPDATE q_middle for new segments created by city_m
+            type ← "middle"
         ENDIF
 
-        visited[new_city] ← TRUE
+        // --- Apply insertion and update structures ---
+        IF type = "before" THEN
+            next_node[city_b] ← src_b
+            first ← city_b
+            visited[city_b] ← TRUE
+
+            CLEAR q_before, q_end
+            FOR each unvisited node j:
+                cycle_cost ← distances[city_b][j] + distances[j][src_b] + costs[j] - distances[city_b][src_b]
+                PUSH (-cycle_cost, j, city_b, src_b) INTO q_middle
+
+        ELSE IF type = "end" THEN
+            next_node[src_e] ← city_e
+            last ← city_e
+            visited[city_e] ← TRUE
+
+            CLEAR q_before, q_end
+            FOR each unvisited node j:
+                cycle_cost ← distances[src_e][j] + distances[j][city_e] + costs[j] - distances[src_e][city_e]
+                PUSH (-cycle_cost, j, src_e, city_e) INTO q_middle
+
+        ELSE  // type = "middle"
+            next_node[src_m] ← city_m
+            next_node[city_m] ← dst_m
+            visited[city_m] ← TRUE
+
+            REMOVE q_middle[(src_m, dst_m)]
+            FOR each unvisited node j:
+                cost1 ← distances[src_m][j] + distances[j][city_m] + costs[j] - distances[src_m][city_m]
+                cost2 ← distances[city_m][j] + distances[j][dst_m] + costs[j] - distances[city_m][dst_m]
+                PUSH (-cost1, j, src_m, city_m) INTO q_middle
+                PUSH (-cost2, j, city_m, dst_m) INTO q_middle
+        ENDIF
     ENDFOR
 
-    // Reconstruct path from linked structure
+    // --- Reconstruct final path ---
     path ← [first]
     WHILE next_node[path.last] ≠ -1 DO
         APPEND next_node[path.last] TO path
@@ -153,7 +213,6 @@ FUNCTION NearestNeighbourCycle(distances, costs, start_point):
     RETURN path
 END FUNCTION
 ```
-
 ### Results of a computational experiment: for each instance and method min, max and average value of the objective function.
 
 TSP A:
