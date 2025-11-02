@@ -93,11 +93,11 @@ Solution NeighbourSteepest::solve(const TSPAInstance &instance,
       }
     } else if (m == IntraMode::EdgeExchange) {
       // Add two-edge exchange moves (Intra)
-      for (int i = 0; i < n; ++i) {
+      for (int i = 0; i < 200; ++i) {
           if (unselectedNodesSet.count(i))
               continue;
         int edge1_end = (i + 1) % n;
-        for (int j = 1; j < 21; ++j) {
+        for (int j = 1; j < 11; ++j) {
             if (unselectedNodesSet.count(distances_and_costs[i][j].second)) {
                 int node1 = (nodesIndices[i] + 1) % n;
                 int node2 = distances_and_costs[i][j].second;
@@ -117,20 +117,8 @@ Solution NeighbourSteepest::solve(const TSPAInstance &instance,
                 allMoves.push_back({0, 1, std::min(node1, node2), std::max(node1, node2)}); // category=0 (Intra), type=1 (edge)
             }
         }
-        // for (int j = i + 2; j < n; ++j) {
-          // if (j == edge1_end)
-            // continue;
-          // allMoves.push_back({0, 1, i, j}); // category=0 (Intra), type=1 (edge)
-        // }
       }
     }
-
-    // Add inter-route moves
-    // for (int i = 0; i < n; ++i) {
-    //   for (int j = 0; j < unselectedNodes.size(); ++j) {
-    //     allMoves.push_back({1, 0, i, j}); // category=1 (Inter)
-    //   }
-    // }
 
     // Evaluate ALL moves to find the best one (steepest descent)
     for (const auto &move : allMoves) {

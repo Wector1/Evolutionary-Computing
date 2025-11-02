@@ -184,14 +184,14 @@ int main(int argc, char **argv) {
     //     tspaInstance);
     // printAndVisualize("Local Steepest Node", lstats);
 
-    LocalSteepest LSStRandomEdgeSolver(LocalSteepest::StartingStrategy::Heuristic,
+    LocalSteepest LSStRandomEdgeSolver(LocalSteepest::StartingStrategy::Random,
                                        LocalSteepest::IntraMode::EdgeExchange);
     SolverStatistics lstatsEdge =
         SolverRunner::runAllStartingPoints(LSStRandomEdgeSolver, tspaInstance);
     printAndVisualize("Local Steepest Edge", lstatsEdge);
 
     NeighbourSteepest NSRandomEdgeSolver(
-        NeighbourSteepest::StartingStrategy::Heuristic,
+        NeighbourSteepest::StartingStrategy::Random,
         NeighbourSteepest::IntraMode::EdgeExchange);
     SolverStatistics nsatsEdge =
         SolverRunner::runAllStartingPoints(NSRandomEdgeSolver, tspaInstance);
