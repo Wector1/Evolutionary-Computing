@@ -173,6 +173,30 @@ Solution PrevDeltas::solve(const TSPAInstance& instance, int startingPoint) {
                         inLM.insert(mInv);
                     }
                 }
+
+                deltaInv = evalEdgeExchange(v1, u1, v2, u2);
+                if (deltaInv < -1e-9) {
+                    Move mInv;
+                    mInv.type = MoveType::EdgeExchange;
+                    mInv.u1 = v1; mInv.v1 = u1; mInv.u2 = v2; mInv.v2 = u2;
+                    mInv.delta = deltaInv;
+                    if (inLM.find(mInv) == inLM.end()) {
+                        LM.push(mInv);
+                        inLM.insert(mInv);
+                    }
+                }
+
+                deltaInv = evalEdgeExchange(u1, v1, v2, u2);
+                if (deltaInv < -1e-9) {
+                    Move mInv;
+                    mInv.type = MoveType::EdgeExchange;
+                    mInv.u1 = u1; mInv.v1 = v1; mInv.u2 = v2; mInv.v2 = u2;
+                    mInv.delta = deltaInv;
+                    if (inLM.find(mInv) == inLM.end()) {
+                        LM.push(mInv);
+                        inLM.insert(mInv);
+                    }
+                }
             }
         }
     };
@@ -209,6 +233,30 @@ Solution PrevDeltas::solve(const TSPAInstance& instance, int startingPoint) {
                     Move mInv;
                     mInv.type = MoveType::EdgeExchange;
                     mInv.u1 = v1; mInv.v1 = u1; mInv.u2 = u2; mInv.v2 = v2;
+                    mInv.delta = deltaInv;
+                    if (inLM.find(mInv) == inLM.end()) {
+                        LM.push(mInv);
+                        inLM.insert(mInv);
+                    }
+                }
+
+                deltaInv = evalEdgeExchange(v1, u1, v2, u2);
+                if (deltaInv < -1e-9) {
+                    Move mInv;
+                    mInv.type = MoveType::EdgeExchange;
+                    mInv.u1 = v1; mInv.v1 = u1; mInv.u2 = v2; mInv.v2 = u2;
+                    mInv.delta = deltaInv;
+                    if (inLM.find(mInv) == inLM.end()) {
+                        LM.push(mInv);
+                        inLM.insert(mInv);
+                    }
+                }
+
+                deltaInv = evalEdgeExchange(u1, v1, v2, u2);
+                if (deltaInv < -1e-9) {
+                    Move mInv;
+                    mInv.type = MoveType::EdgeExchange;
+                    mInv.u1 = u1; mInv.v1 = v1; mInv.u2 = v2; mInv.v2 = u2;
                     mInv.delta = deltaInv;
                     if (inLM.find(mInv) == inLM.end()) {
                         LM.push(mInv);
@@ -265,6 +313,8 @@ Solution PrevDeltas::solve(const TSPAInstance& instance, int startingPoint) {
     generateAllEdgeMoves();
     generateAllInterMoves();
 
+    std::vector<Move> tempMoves;
+    
     while (!LM.empty()) {
         Move m = LM.top();
         LM.pop();
@@ -283,15 +333,7 @@ Solution PrevDeltas::solve(const TSPAInstance& instance, int startingPoint) {
             }
             
             if (dir1 == 2 || dir2 == 2) {
-                // Edge(s) exist but in reversed direction -> not applicable now
-                // Re-insert with inverted direction for future
-                if (dir1 == 2) std::swap(m.u1, m.v1);
-                if (dir2 == 2) std::swap(m.u2, m.v2);
-                m.delta = evalEdgeExchange(m.u1, m.v1, m.u2, m.v2);
-                if (m.delta < -1e-9 && inLM.find(m) == inLM.end()) {
-                    LM.push(m);
-                    inLM.insert(m);
-                }
+                tempMoves.push_back(m);
                 continue;
             }
             
@@ -384,6 +426,15 @@ Solution PrevDeltas::solve(const TSPAInstance& instance, int startingPoint) {
                 posOf[prevNode], posOf[m.nodeOut], posOf[nextNode]
             };
             generateInterMovesForPositions(affectedPositions);
+        }
+
+        while (!tempMoves.empty()) {
+            Move tm = tempMoves.back();
+            tempMoves.pop_back();
+            if (inLM.find(tm) == inLM.end()) {
+                LM.push(tm);
+                inLM.insert(tm);
+            }
         }
     }
 
